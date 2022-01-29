@@ -22,9 +22,8 @@ const dynamo = new AWS.DynamoDB.DocumentClient();
     console.log(JSON.stringify(item));
     if (item.Items.length>0)
     {
-        const idToken = item.Items[0]["sk"];
-        console.log(idToken);
-        return { idToken };
+        const IdToken = item.Items[0]["sk"];
+        return { IdToken };
 
     }
     else
@@ -64,14 +63,19 @@ export const main = async (event, context) => {
 
     console.log(JSON.stringify(item.Items));
 
+    if (item.Items.length<1)
+        return ({
+           statusCode:404,
+           body:JSON.stringify({"msg":"sub not found"})
+        });
     const username = item.Items[0]["username"];
     const password = item.Items[0]["password"];
 
-    const {idToken}  = await checkTokenInDatabase(sub);
+    const idToken  = await checkTokenInDatabase(sub);
     if (idToken) {
         return ({
             statusCode: 200,
-            body: JSON.stringify({idToken})
+            body: JSON.stringify(idToken)
         });
     }
      else {
@@ -88,7 +92,7 @@ export const main = async (event, context) => {
         await insertToken(sub,response);
         return ({
             statusCode: 200,
-            body: JSON.stringify(response.AuthenticationResult)
+            body: JSON.stringify({"IdToken":response.AuthenticationResult.IdToken})
         });
 
     }
