@@ -92,6 +92,8 @@ functions:
   preToken:
     handler: lambda/tokenGenerator.main
     role: roleForTrigger
+    environment:
+      APPS_TABLE: ${self:custom.appsTable}
 resources:
   Resources:
     serversTable:
@@ -187,3 +189,15 @@ resources:
                     - logs:CreateLogStream
                     - logs:PutLogEvents
                   Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - dynamodb:Query
+                    - dynamodb:Scan
+                    - dynamodb:GetItem
+                    - dynamodb:PutItem
+                    - dynamodb:UpdateItem
+                    - dynamodb:DeleteItem
+                  Resource:
+                     Fn::GetAtt:
+                        - appsTable
+                        - Arn
