@@ -12,7 +12,7 @@ plugins:
 custom:
   serversTable: ${self:service}-${self:provider.stage}-servers
   tokensTable: ${self:service}-${self:provider.stage}-tokens
-
+  appsTable: ${self:service}-${self:provider.stage}-app
 provider:
   name: aws
   runtime: nodejs14.x
@@ -89,6 +89,9 @@ functions:
       - http:
           path: delete
           method: delete
+  preToken:
+    handler: lambda/tokenGenerator.main
+    role: roleForTrigger
 resources:
   Resources:
     serversTable:
@@ -125,3 +128,62 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 5
           WriteCapacityUnits: 5
+    appsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.appsTable}
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+          - AttributeName: type
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: index_by_sk
+            KeySchema:
+              - AttributeName: sk
+                KeyType: HASH
+              - AttributeName: type
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              WriteCapacityUnits: 5
+              ReadCapacityUnits: 5
+        ProvisionedThroughput:
+          WriteCapacityUnits: 5
+          ReadCapacityUnits: 5
+    roleForTrigger:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${self:provider.stage}-RoleTrigger
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+            - Effect: Allow
+              Principal:
+                Service:
+                  - cognito-idp.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: PolicyForTriggerCognito
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource: "*"
