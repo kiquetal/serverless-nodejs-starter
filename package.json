@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "aws-sdk": "^2.1063.0",
-    "dayjs": "^1.10.7"
+    "dayjs": "^1.10.7",
+    "nanoid": "^3.2.0"
   }
 }

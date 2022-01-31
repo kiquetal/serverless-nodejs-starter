@@ -58,7 +58,18 @@ provider:
         Fn::GetAtt:
           - tokensTable
           - Arn
-
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        Fn::GetAtt:
+          - appsTable
+          - Arn
 functions:
   register:
     handler: lambda/register.main
@@ -94,6 +105,30 @@ functions:
     role: roleForTrigger
     environment:
       APPS_TABLE: ${self:custom.appsTable}
+  addApp:
+    handler: lambda/app.main
+    environment:
+      APPS_TABLE: ${self:custom.appsTable}
+    events:
+      - http:
+          path: apps
+          method: post
+  addAppCreds:
+    handler: lambda/app.creds
+    environment:
+      APPS_TABLE: ${self:custom.appsTable}
+    events:
+      - http:
+          path: apps/creds
+          method: post
+  getApps:
+    handler: lambda/app.get
+    environment:
+      APPS_TABLE: ${self:custom.appsTable}
+    events:
+      - http:
+          path: apps
+          method: get
 resources:
   Resources:
     serversTable:
