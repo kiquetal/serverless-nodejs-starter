@@ -33,6 +33,7 @@ provider:
         - cognito-idp:AdminCreateUser
         - cognito-idp:AdminSetUserPassword
         - cognito-idp:AdminDeleteUser
+        - cognito-idp:AdminUpdateUserAttributes
       Resource: "*"
     - Effect: Allow
       Action:
@@ -114,15 +115,15 @@ functions:
       APPS_TABLE: ${self:custom.appsTable}
     events:
       - http:
-          path: apps
+          path: credentials
           method: post
-  getApps:
+  getCreds:
     handler: lambda/creds.get
     environment:
       APPS_TABLE: ${self:custom.appsTable}
     events:
       - http:
-          path: apps
+          path: credentials
           method: get
   addAccessApp:
     handler: lambda/access.main
@@ -134,6 +135,29 @@ functions:
           method: post
   setAdmin:
     handler: lambda/admin.main
+    environment:
+      USERNAME: replace-for-username@gmail.com
+      USERPOOL_ID: us-east-1_ZlRzPJ3M0
+
+  tokens:
+    handler: lambda/apigeeToken.main
+    environment:
+      APPS_TABLE : ${self:custom.appsTable}
+    events:
+      - http:
+          path: token
+          method: post
+  serverTokens:
+    handler: lambda/login.tokens
+    environment:
+      APPS_TABLE: ${self:custom.appsTable}
+      USERPOOL_ID: us-east-1_ZlRzPJ3M0
+      CLIENT_ID: 6eobkaqk7n9cskoalqidtj09n
+      SERVERS_TABLE: ${self:custom.serversTable}
+    events:
+      - http:
+          path: /server/token
+          method: post
 
 resources:
   Resources:
