@@ -6,7 +6,7 @@ export const main = async (event,context,callback) => {
     const bodyJSON = JSON.parse(event.body);
     const clientId = bodyJSON["credentials"]["clientId"];
     const clientSecret = bodyJSON["credentials"]["clientSecret"];
-    const name = bodyJSON["name"];
+    const name = bodyJSON["nameApp"];
     const developerName = bodyJSON["developerEmail"];
     const params = {
         TableName: process.env.APPS_TABLE,

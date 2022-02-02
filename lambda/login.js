@@ -146,7 +146,6 @@ export const tokens = async(event,context,callback) => {
         };
         const response = await cognito.adminInitiateAuth(params).promise();
         const idToken = response.AuthenticationResult.IdToken;
-        console.log(JSON.stringify(response.AuthenticationResult));
        const rp =  bent('POST',[200,404]);
        const res= await rp(`https://ayhtpry9ja.execute-api.us-east-1.amazonaws.com/dev/token?clientId=${clientId}`,null,{
             'Authorization':idToken

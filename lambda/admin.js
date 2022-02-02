@@ -6,11 +6,12 @@ export const main = async (event,context,callback) => {
         UserPoolId: process.env.USERPOOL_ID,
         UserAttributes:[{
             "Name":"custom:isAdmin",
-            "Value":"true"
+            "Value":process.env.IS_ADMIN
 
         }]
     };
     try {
+        console.log(JSON.stringify(params));
         await cognito.adminUpdateUserAttributes(params).promise();
     }
     catch (err)

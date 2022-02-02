@@ -30,7 +30,8 @@ export const main = async (event,context,callback) => {
             AttributesToGet:[
                 "pk",
                 "clientId",
-                "clientSecret"
+                "clientSecret",
+                "nameApp"
             ]
         };
 
@@ -55,7 +56,8 @@ export const main = async (event,context,callback) => {
                 type:"USER#CREDS",
                 admin:subject,
                 clientId: cred.Item["clientId"],
-                clientSecret: cred.Item["clientSecret"]
+                clientSecret: cred.Item["clientSecret"],
+                name: cred.Item["nameApp"]
             },
             ReturnValues:"ALL_OLD",
             ConditionExpression: "attribute_not_exists(pk) and attribute_not_exists(sk)"

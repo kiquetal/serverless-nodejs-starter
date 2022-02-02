@@ -133,11 +133,13 @@ functions:
       - http:
           path: access
           method: post
+
   setAdmin:
     handler: lambda/admin.main
     environment:
       USERNAME: replace-for-username@gmail.com
       USERPOOL_ID: us-east-1_ZlRzPJ3M0
+      IS_ADMIN: no
 
   tokens:
     handler: lambda/apigeeToken.main

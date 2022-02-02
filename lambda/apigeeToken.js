@@ -1,5 +1,5 @@
 import AWS from 'aws-sdk';
-import * as https from "https";
+import bent from "bent";
 
 
 const dynamo = new AWS.DynamoDB.DocumentClient();
@@ -15,8 +15,11 @@ export const main = async (event, context, callback) => {
     console.log(JSON.stringify(event.headers["Authorization"]));
     const subject = event.requestContext.authorizer.claims["sub"];
     const isAdmin = event.requestContext.authorizer.claims["custom:isAdmin"];
-
-    if (isAdmin == "true") {
+    const notExists = event.requestContext.authorizer.claims["custom:kiquetal"];
+    console.log("isAdmin: ["+isAdmin+"]");
+    console.log("notExists: ["+notExists+"]");
+    if (!notExists)console.log("attribute_not_exists");
+    if (!isAdmin || isAdmin != "yes") {
 
         const params = {
             TableName: process.env.APPS_TABLE,
@@ -32,8 +35,6 @@ export const main = async (event, context, callback) => {
                 "#sk": "sk",
             }
         };
-        console.log(JSON.stringify(params));
-        console.log(clientId);
         const resp = await dynamo.query(params).promise();
         console.log(JSON.stringify(resp));
         if (resp.Items.length < 1) {
@@ -43,54 +44,69 @@ export const main = async (event, context, callback) => {
             });
         }
 
-        const rp = await getRequest("Basic "+Buffer.from(resp.Items[0]["clientId"]+":"+resp.Items[0]["clientSecret"]).toString('base64'));
+       const authApigee=  'Basic '+ Buffer.from(resp.Items[0]["clientId"]+":"+resp.Items[0]["clientSecret"]).toString('base64');
+
+       const rsJson = await obtainTokenApigee(authApigee);
          return ({
             statusCode: 200,
-            body: JSON.stringify({"access_token":rp.access_token,
-                  "expiresIn":rp.expires_in
+            body: JSON.stringify({"access_token":rsJson.access_token,
+                  "expiresIn":rsJson.expires_in
             })
         });
 
     }
+    else
+    {  //admin Can request any credential
+        if (isAdmin && isAdmin=="yes") {
+            console.log("hello admin");
+            const paramCred = {
+                TableName: process.env.APPS_TABLE,
+                Key: {
+                    pk: `cred#${clientId}`,
+                    sk: "CRED#ID"
+                },
+                AttributesToGet: [
+                    "pk",
+                    "clientId",
+                    "clientSecret",
+                    "name"
+                ]
+            };
+
+            const credential = await dynamo.get(paramCred).promise();
+            if (Object.keys(credential).length < 1) {
+                return ({
+                    statusCode: 404,
+                    body: JSON.stringify({"msg": `${clientId} is not found.`})
+                });
+            }
+
+            const authForApigee = 'Basic ' + Buffer.from(credential.Item["clientId"] + ":" + credential.Item["clientSecret"]).toString('base64');
+            const rsJson = await obtainTokenApigee(authForApigee);
+            return ({
+                statusCode: 200,
+                body: JSON.stringify({
+                    "access_token": rsJson["access_token"],
+                    "expires_in": rsJson["expires_in"]
+                })
+            });
+
+        }
+        else
+        {
+            console.log("never should reach here");
+        }
+    }
 
 };
 
+const obtainTokenApigee = async (basiAuth) => {
+    const apigee =  bent('POST',200);
 
-function getRequest(basicAuth) {
-    const options = {
-        hostname: 'qa.api.tigo.com',
-        path: '/oauth/client_credential/accesstoken?grant_type=client_credentials',
-        method: 'POST',
-        port: 443, // 👈️ replace with 80 for HTTP requests
-        headers: {
-            'Authorization': basicAuth
-        },
-    };
-
-    return new Promise((resolve, reject) => {
-        const req = https.request(options, res => {
-            let rawData = '';
-
-            res.on('data', chunk => {
-                rawData += chunk;
-            });
-
-            res.on('end', () => {
-                try {
-                    resolve(JSON.parse(rawData));
-                } catch (err) {
-                    reject(new Error(err));
-                }
-            });
-        });
-
-        req.on('error', err => {
-            reject(new Error(err));
-        });
-
-        // 👇 write the body to the Request object
-      //  req.write(JSON.stringify(body));
-        req.end();
+    const rp =await apigee("https://qa.api.tigo.com/oauth/client_credential/accesstoken?grant_type=client_credentials",null,{
+        'Authorization': basiAuth
     });
-}
 
+    const rsJson = await rp.json();
+    return rsJson;
+};
