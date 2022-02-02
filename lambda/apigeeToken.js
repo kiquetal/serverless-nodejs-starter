@@ -103,7 +103,8 @@ export const main = async (event, context, callback) => {
 const obtainTokenApigee = async (basiAuth) => {
     const apigee =  bent('POST',200);
 
-    const rp =await apigee("https://qa.api.tigo.com/oauth/client_credential/accesstoken?grant_type=client_credentials",null,{
+    const domain = process.env.APIGEEURL;
+    const rp =await apigee(`${domain}?grant_type=client_credentials`,null,{
         'Authorization': basiAuth
     });
 

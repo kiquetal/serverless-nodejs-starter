@@ -14,8 +14,14 @@ const cognito = new AWS.CognitoIdentityServiceProvider();
         TableName: process.env.TOKENS_TABLE,
         KeyConditionExpression: "pk = :subValue",
         ExpressionAttributeValues: {
-            ":subValue": sub
-        }
+            ":subValue": sub,
+            ":now": dayjs.utc().unix()
+        },
+        ExpressionAttributeNames: {
+            "#time":"ttl"
+        },
+        FilterExpression: "#time > :now",
+
     };
     console.log(JSON.stringify(paramsDB));
     console.log("search "+ sub);

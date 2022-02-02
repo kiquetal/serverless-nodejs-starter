@@ -145,6 +145,7 @@ functions:
     handler: lambda/apigeeToken.main
     environment:
       APPS_TABLE : ${self:custom.appsTable}
+      APIGEEURL: https://qa.api.tigo.com/oauth/client_credential/accesstoken
     events:
       - http:
           path: token
