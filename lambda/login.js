@@ -1,6 +1,7 @@
 import AWS from 'aws-sdk';
 import dayjs from "dayjs";
 import bent from 'bent';
+import {createNotFoundResponse, createSuccessResponse} from "./util";
 const utc = require('dayjs/plugin/utc');
 dayjs.extend(utc);
 
@@ -57,7 +58,7 @@ async function insertToken(sub, response) {
 
 export const main = async (event, context) => {
     const bodyJSON = JSON.parse(event.body);
-    const sub = bodyJSON["sub"];
+    const sub = bodyJSON["subId"];
     const paramsDB = {
         TableName: process.env.SERVERS_TABLE,
         KeyConditionExpression: "pk = :subValue",
@@ -69,19 +70,13 @@ export const main = async (event, context) => {
 
 
     if (item.Items.length<1)
-        return ({
-           statusCode:404,
-           body:JSON.stringify({"msg":"sub not found"})
-        });
+        return createNotFoundResponse({msg:`Subject not found`});
     const username = item.Items[0]["username"];
     const password = item.Items[0]["password"];
 
     const idToken  = await checkTokenInDatabase(sub);
     if (idToken) {
-        return ({
-            statusCode: 200,
-            body: JSON.stringify(idToken)
-        });
+        return createSuccessResponse(idToken);
     }
      else {
         const params = {
@@ -95,10 +90,7 @@ export const main = async (event, context) => {
         };
         const response = await cognito.adminInitiateAuth(params).promise();
         await insertToken(sub,response);
-        return ({
-            statusCode: 200,
-            body: JSON.stringify({"IdToken":response.AuthenticationResult.IdToken})
-        });
+        return createSuccessResponse({IdToken:response.AuthenticationResult.IdToken});
 
     }
 
@@ -120,24 +112,18 @@ const querySub=async (sub) => {
 
 export const tokens = async(event,context,callback) => {
     const bodyJSON = JSON.parse(event.body);
-    const sub = bodyJSON["sub"];
+    const sub = bodyJSON["subId"];
 
     const clientId = event.queryStringParameters!=null?event.queryStringParameters["clientId"]:null;
     if (!clientId)
     {
-        return ({
-            statusCode:404,
-            body:JSON.stringify({msg:"Must send a query parameter `clientId`"})
-        });
+        return createNotFoundResponse({"msg":"Must send `clientId` queryParameter"});
     }
     try {
 
         const item = await querySub(sub);
         if (item.Items.length < 1)
-            return ({
-                statusCode: 404,
-                body: JSON.stringify({"msg": "sub not found"})
-            });
+            return createNotFoundResponse({"msg":"Subject not found"});
         const username = item.Items[0]["username"];
         const password = item.Items[0]["password"];
 
@@ -152,14 +138,14 @@ export const tokens = async(event,context,callback) => {
         };
         const response = await cognito.adminInitiateAuth(params).promise();
         const idToken = response.AuthenticationResult.IdToken;
-       const rp =  bent('POST',[200,404]);
+        console.log(JSON.stringify(idToken));
+       const rp =  bent('POST',[200,404,403]);
        const res= await rp(`https://ayhtpry9ja.execute-api.us-east-1.amazonaws.com/dev/token?clientId=${clientId}`,null,{
             'Authorization':idToken
         });
-        return ({
-            statusCode:200,
-            body:JSON.stringify(await  res.json())
-        });
+       const jsonData=await res.json();
+       console.log(JSON.stringify(jsonData));
+        return createSuccessResponse(jsonData);
 
     }
     catch (err)
@@ -172,4 +158,5 @@ export const tokens = async(event,context,callback) => {
     }
 
 };
+
 

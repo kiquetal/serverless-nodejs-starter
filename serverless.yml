@@ -110,7 +110,7 @@ functions:
     environment:
       APPS_TABLE: ${self:custom.appsTable}
   addCredential:
-    handler: lambda/creds.main
+    handler: lambda/clients.main
     environment:
       APPS_TABLE: ${self:custom.appsTable}
     events:
@@ -118,7 +118,7 @@ functions:
           path: credentials
           method: post
   getCreds:
-    handler: lambda/creds.get
+    handler: lambda/clients.get
     environment:
       APPS_TABLE: ${self:custom.appsTable}
     events:

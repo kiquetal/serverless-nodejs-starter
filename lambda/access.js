@@ -1,12 +1,26 @@
 import AWS from 'aws-sdk';
+import {
+    createCreatedResponse,
+    createErrorResponse,
+    createForbbidenResponse,
+    createNotFoundResponse, isFromSSO,
+    validateIsAdmin
+} from "./util";
 const dynamo = new AWS.DynamoDB.DocumentClient();
 
 export const main = async (event,context,callback) => {
 
     const bodyJSON = JSON.parse(event.body);
     const subject= event.requestContext.authorizer.claims["sub"];
-    const isAdmin = event.requestContext.authorizer.claims["custom:isAdmin"];
-    console.log(isAdmin);
+    const isAdminAttribute = event.requestContext.authorizer.claims["custom:isAdmin"];
+    const usernameClaim = event.requestContext.authorizer.claims["cognito:username"];
+    if (!validateIsAdmin(isAdminAttribute))
+        return createForbbidenResponse({"msg": "Not allowed to do this action."});
+
+    console.log("check user from sso");
+    if (!isFromSSO(usernameClaim))
+        return createForbbidenResponse({"msg": "Not allowed to do this action."});
+
     try
     {
 
@@ -14,7 +28,7 @@ export const main = async (event,context,callback) => {
         const paramUser = {
           TableName: process.env.APPS_TABLE,
           Key:{
-              pk: bodyJSON["userId"],
+              pk: bodyJSON["subId"],
               sk:"USER#ID"
           },
             AttributesToGet: [
@@ -24,8 +38,8 @@ export const main = async (event,context,callback) => {
         const paramCred = {
             TableName: process.env.APPS_TABLE,
             Key:{
-                pk: bodyJSON["credId"],
-                sk:"CRED#ID"
+                pk: bodyJSON["clientId"],
+                sk:"CLIENT#ID"
             },
             AttributesToGet:[
                 "pk",
@@ -37,46 +51,38 @@ export const main = async (event,context,callback) => {
 
         const user = await dynamo.get(paramUser).promise();
         if (Object.keys(user).length<1)
-            return ({
-               statusCode:404,
-               body:JSON.stringify({"msg":"clientId is not registered"})
-            });
+            return createNotFoundResponse({ "msg":"clientId is not registered"});
         const cred = await dynamo.get(paramCred).promise();
         if (Object.keys(cred).length<1)
-            return ({
-                statusCode:404,
-                body:JSON.stringify({"msg":"credetenials is not registered"})
-            });
+            return createNotFoundResponse({ "msg":"clientId is not registered"});
+
 
         const params= {
             TableName: process.env.APPS_TABLE,
             Item:{
-                pk: bodyJSON["userId"],
-                sk: bodyJSON["credId"],
+                pk: bodyJSON["subId"],
+                sk: bodyJSON["clientId"],
                 type:"USER#CREDS",
                 admin:subject,
                 clientId: cred.Item["clientId"],
                 clientSecret: cred.Item["clientSecret"],
-                name: cred.Item["nameApp"]
+                nameApp: cred.Item["nameApp"]
             },
             ReturnValues:"ALL_OLD",
             ConditionExpression: "attribute_not_exists(pk) and attribute_not_exists(sk)"
         };
 
          await dynamo.put(params).promise();
-        return ({
-            statusCode:200,
-            body:JSON.stringify(params.Item)
+        return createCreatedResponse({
+            "clientId":params.Item["pk"],
+            "name":params.Item["nameApp"]
         });
 
 
     }
     catch (err)
     {
-        return ({
-            statusCode:500,
-            body:JSON.stringify({"msg":err.toString()})
-        });
+        return createErrorResponse(500,{msg:err.toString()});
 
     }
 
